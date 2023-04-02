@@ -41,7 +41,34 @@ class EulerianDiffuser:
                     break
         euler = [str(u) for u, v in nx.eulerian_circuit(sub_graph, infected[0])]
         if len(euler) == 0:
-            euler = [str(u) for u, v in nx.eulerian_circuit(graph, infected[0])]
+            euler = [str(u) for u, v in nx.eulerian_circuit(self.graph, infected[0])]
+        return euler
+    
+    def run_diffusion_process_directed(self, node):
+        """
+        Generating a diffusion tree from a given source node.
+        Linearizing it with an Eulerian tour.
+        :param node: Source of diffusion.
+        :return euler: Eulerian linear node sequence.
+        """
+        infected = [node]
+        sub_graph = nx.DiGraph()
+        sub_graph.add_node(node)
+        infected_counter = 1
+        while infected_counter < self.number_of_nodes:
+            end_point = random.sample(infected, 1)[0]
+            nebs = [node for node in self.graph.neighbors(end_point)]
+            preds = [node for node in self.graph.predecessors(end_point)]
+            sample = random.sample(nebs, 1)[0]
+            if sample not in infected:
+                infected_counter = infected_counter + 1
+                infected = infected + [sample]
+                sub_graph.add_edges_from([(end_point, sample), (sample, end_point)])
+                if infected_counter == self.number_of_nodes:
+                    break
+        euler = [str(u) for u, v in nx.eulerian_circuit(sub_graph, infected[0])]
+        if len(euler) == 0:
+            euler = [str(u) for u, v in nx.eulerian_circuit(self.graph, infected[0])]
         return euler
 
     def run_diffusions(self):

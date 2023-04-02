@@ -20,7 +20,8 @@ class SubGraphComponents:
         self.seed = seeding
         self.vertex_set_cardinality = vertex_set_cardinality
         self.read_start_time = time.time()
-        self.graph = nx.from_edgelist(pd.read_csv(edge_list_path, index_col=None).values.tolist())
+        self.graph = nx.from_edgelist(pd.read_csv(edge_list_path, index_col=None).values.tolist(), create_using=nx.DiGraph)
+        self.og_graph = nx.from_edgelist(pd.read_csv(edge_list_path, index_col=None).values.tolist(), create_using=nx.DiGraph)
         self.counts = len(self.graph.nodes())+1
         self.separate_subcomponents()
         self.single_feature_generation_run()
@@ -29,11 +30,43 @@ class SubGraphComponents:
         """
         Finding the connected components.
         """
-        comps = [self.graph.subgraph(c) for c in nx.connected_components(self.graph)]
+        comps = [self.graph.subgraph(c) for c in nx.strongly_connected_components(self.graph)]
         self.graph = sorted(comps, key=len, reverse=True)
         self.read_time = time.time()-self.read_start_time
 
-    def single_feature_generation_run(self):
+
+    def random_walk_directed(self, graph,  node, walk_lenght):
+        walk = []
+        current_node = node
+        for i in range(walk_lenght):
+            walk.append(str(current_node))
+            neighbors = list(graph.successors(current_node))
+            if len(neighbors) != 0:
+                # select a neighbor at random to move to
+                next_node = random.choice(neighbors)
+                # set the next node as the current node for the next step of the walk
+                current_node = next_node
+        return walk
+    
+    def random_walk_directed_with_restart(self, graph,  node, walk_lenght, tries = 2):
+        walk = []
+        dead_end = 0
+        current_node = node
+        for i in range(walk_lenght):
+            walk.append(str(current_node))
+            neighbors = list(graph.successors(current_node))
+            if len(neighbors) != 0:
+                # select a neighbor at random to move to
+                next_node = random.choice(neighbors)
+                # set the next node as the current node for the next step of the walk
+                current_node = next_node
+            else:
+                dead_end += 1
+                if dead_end == tries:
+                    current_node = node
+        return walk
+
+    def single_feature_generation_run2(self):
         """
         Running a round of diffusions and measuring the sequence generation performance.
         """
@@ -44,7 +77,54 @@ class SubGraphComponents:
             current_cardinality = len(sub_graph.nodes())
             if current_cardinality < self.vertex_set_cardinality:
                 self.vertex_set_cardinality = current_cardinality
-            diffuser = EulerianDiffuser(sub_graph, self.vertex_set_cardinality)
-            self.paths.update(diffuser.diffusions)
+            if current_cardinality > 1:
+                diffuser = EulerianDiffuser(sub_graph, self.vertex_set_cardinality)
+                self.paths.update(diffuser.diffusions)
+            else:
+                self.paths.update({list(sub_graph.nodes())[0]: [str(list(sub_graph.nodes())[0])] * 6})
         self.paths = [v for k, v in self.paths.items()]
+        print(self.paths)
+        self.generation_time = time.time() - self.generation_start_time
+
+    def single_feature_generation_run_basic_random_walk(self):
+        """
+        Running a round of diffusions and measuring the sequence generation performance.
+        """
+        random.seed(self.seed)
+        self.generation_start_time = time.time()
+        self.paths = {}
+        for n in self.og_graph.nodes():
+            walk = self.random_walk_directed(self.og_graph, n, 10)
+            self.paths.update({n : walk})
+        self.paths = [v for k, v in self.paths.items()]
+        print(self.paths)
+        self.generation_time = time.time() - self.generation_start_time
+
+    def single_feature_generation_run(self):
+        """
+        Running a round of diffusions and measuring the sequence generation performance.
+        """
+        random.seed(self.seed)
+        self.generation_start_time = time.time()
+        self.paths = {}
+        for n in self.og_graph.nodes():
+            walk = self.random_walk_directed_with_restart(self.og_graph, n, 10)
+            self.paths.update({n : walk})
+        self.paths = [v for k, v in self.paths.items()]
+        print(self.paths)
+        self.generation_time = time.time() - self.generation_start_time
+    
+    def single_feature_generation_run3(self):
+        """
+        Running a round of diffusions and measuring the sequence generation performance.
+        """
+        random.seed(self.seed)
+        self.generation_start_time = time.time()
+        self.paths = {}
+        for sub_graph in self.og_graph.nodes():
+            for n in sub_graph.nodes():
+                walk = self.random_walk_directed_with_restart(sub_graph, n, 10)
+                self.paths.update({n : walk})
+        self.paths = [v for k, v in self.paths.items()]
+        print(self.paths)
         self.generation_time = time.time() - self.generation_start_time
