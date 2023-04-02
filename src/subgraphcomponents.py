@@ -56,9 +56,7 @@ class SubGraphComponents:
             walk.append(str(current_node))
             neighbors = list(graph.successors(current_node))
             if len(neighbors) != 0:
-                # select a neighbor at random to move to
                 next_node = random.choice(neighbors)
-                # set the next node as the current node for the next step of the walk
                 current_node = next_node
             else:
                 dead_end += 1
