@@ -75,13 +75,9 @@ class SubGraphComponents:
             current_cardinality = len(sub_graph.nodes())
             if current_cardinality < self.vertex_set_cardinality:
                 self.vertex_set_cardinality = current_cardinality
-            if current_cardinality > 1:
-                diffuser = EulerianDiffuser(sub_graph, self.vertex_set_cardinality)
-                self.paths.update(diffuser.diffusions)
-            else:
-                self.paths.update({list(sub_graph.nodes())[0]: [str(list(sub_graph.nodes())[0])] * 6})
+            diffuser = EulerianDiffuser(sub_graph, self.vertex_set_cardinality)
+            self.paths.update(diffuser.diffusions)
         self.paths = [v for k, v in self.paths.items()]
-        print(self.paths)
         self.generation_time = time.time() - self.generation_start_time
 
     def single_feature_generation_run_basic_random_walk(self):
@@ -112,17 +108,3 @@ class SubGraphComponents:
         print(self.paths)
         self.generation_time = time.time() - self.generation_start_time
     
-    def single_feature_generation_run3(self):
-        """
-        Running a round of diffusions and measuring the sequence generation performance.
-        """
-        random.seed(self.seed)
-        self.generation_start_time = time.time()
-        self.paths = {}
-        for sub_graph in self.og_graph.nodes():
-            for n in sub_graph.nodes():
-                walk = self.random_walk_directed_with_restart(sub_graph, n, 10)
-                self.paths.update({n : walk})
-        self.paths = [v for k, v in self.paths.items()]
-        print(self.paths)
-        self.generation_time = time.time() - self.generation_start_time
