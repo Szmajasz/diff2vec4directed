@@ -23,6 +23,7 @@ class SubGraphComponents:
         self.graph = nx.from_edgelist(pd.read_csv(edge_list_path, index_col=None).values.tolist(), create_using=nx.DiGraph)
         self.og_graph = nx.from_edgelist(pd.read_csv(edge_list_path, index_col=None).values.tolist(), create_using=nx.DiGraph)
         self.counts = len(self.graph.nodes())+1
+        self.nodes = self.graph.nodes()
         self.separate_subcomponents()
         self.single_feature_generation_run()
 

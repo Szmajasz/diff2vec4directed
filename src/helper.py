@@ -109,9 +109,11 @@ def result_processing(results):
     read_time_results = [res[1] for res in results]
     generation_time_results = [res[2] for res in results]
     counts = [res[3] for res in results]
+    nodes = list(results[0][4])
+
     generation_tab_printer(read_time_results, generation_time_results)
     walk_results = [walk for walks in walk_results for walk in walks]
-    return walk_results, counts
+    return walk_results, counts, nodes
 
 
 def process_non_pooled_model_data(walks, counts, args):
