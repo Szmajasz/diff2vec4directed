@@ -31,6 +31,11 @@ def parameter_parser():
                         default="pooled",
 	                help="Model type.")
 
+    parser.add_argument("--directed",
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help="Model type.")
+
     parser.add_argument("--dimensions",
                         type=int,
                         default=128,
@@ -125,7 +130,7 @@ def process_non_pooled_model_data(walks, counts, args):
     :return docs: Processed walks.
     """
     print("Run feature extraction across windows.")
-    features = {str(node): [] for node in range(counts)}
+    features = {str(node): [] for node in range(counts[0])}
     for walk in tqdm(walks):
         for i in range(len(walk)-args.window_size):
             for j in range(1, args.window_size+1):
@@ -134,3 +139,66 @@ def process_non_pooled_model_data(walks, counts, args):
 
     docs = [TaggedDocument(words=[x[0] for x in v], tags=[str(k)]) for k, v in features.items()]
     return docs
+
+def process_raw_frequency_dict(raw_frequency_dict):
+    """
+    Function to extract proximity statistics.
+    :param raw_frequency_dict: Dictionary with information about visits in local nodes for each node
+    """
+    print("Run feature extraction across windows.")
+    nodes = raw_frequency_dict.keys()
+    features = {str(node): [] for node in nodes}
+    for node, frequencies in raw_frequency_dict.items():
+        for subgraph_node, n_visits in raw_frequency_dict[node].items():
+            for _ in range(n_visits):
+                features[str(node)].append(["+1"+"_"+str(subgraph_node)])
+                features[str(subgraph_node)].append(["_1"+"_"+str(node)])
+
+    docs = [TaggedDocument(words=[x[0] for x in v], tags=[str(k)]) for k, v in features.items()]
+    return docs
+
+
+def successors_search(g, node, max_neighbours=5, max_depth=3):
+    def step(g, node, visits, depth, max_neighbours, max_depth):
+        if depth > max_depth:
+            return
+
+        neighbors = list(g.successors(node))[:max_neighbours]
+        for n in neighbors:
+            if n not in visits:
+                visits[n] = 0
+            visits[n] += 1
+
+        for n in neighbors:
+            step(g, n, visits, depth + 1, max_neighbours, max_depth)
+
+    frequency_dict = dict()
+    step(g, node, frequency_dict, 0, max_neighbours, max_depth)
+
+    return frequency_dict
+
+
+def predecessors_search(g, node, max_neighbours=5, max_depth=3):
+    def step(g, node, visits, depth, max_neighbours, max_depth):
+        if depth > max_depth:
+            return
+
+        neighbors = list(g.predecessors(node))[:max_neighbours]
+        for n in neighbors:
+            if n not in visits:
+                visits[n] = 0
+            visits[n] += 1
+
+        for n in neighbors:
+            step(g, n, visits, depth + 1, max_neighbours, max_depth)
+
+    frequency_dict = dict()
+    step(g, node, frequency_dict, 0, max_neighbours, max_depth)
+
+    return frequency_dict
+
+def get_raw_frequencies_dict(g):
+    frequency_dicts = dict()
+    for node in g.nodes():
+        frequency_dicts[node] = successors_search(g, node)
+    return frequency_dicts

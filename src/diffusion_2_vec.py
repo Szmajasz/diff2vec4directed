@@ -2,6 +2,8 @@
 
 import time
 import logging
+
+import networkx as nx
 import pandas as pd
 from tqdm import tqdm
 from joblib import Parallel, delayed
@@ -9,7 +11,7 @@ from gensim.models import Word2Vec, Doc2Vec
 import numpy.distutils.system_info as sysinfo
 from subgraphcomponents import SubGraphComponents
 from gensim.models.word2vec import logger, FAST_VERSION
-from helper import parameter_parser, result_processing
+from helper import parameter_parser, result_processing, process_raw_frequency_dict, get_raw_frequencies_dict
 from helper import process_non_pooled_model_data, argument_printer
 
 sysinfo.get_info("atlas")
@@ -68,7 +70,6 @@ def learn_non_pooled_embeddings(walks, counts, args):
     :param counts: Number of nodes.
     :param args: Arguments.
     """
-    walks = process_non_pooled_model_data(walks, counts, args)
     return Doc2Vec(walks,
                     size=args.dimensions,
                     window=0,
@@ -109,8 +110,17 @@ def main(args):
                                                   args.workers)
     print("\n----------\nLearning starts.\n----------\n")
 
+
     if args.model == "non-pooled":
-        model = learn_non_pooled_embeddings(walks, counts, args)
+
+        if args.directed:
+            graph = nx.from_edgelist(pd.read_csv(args.input, index_col=None).values.tolist(), create_using=nx.DiGraph)
+            raw_frequencies_dict = get_raw_frequencies_dict(graph)
+            frequencies = process_raw_frequency_dict(raw_frequencies_dict)
+            model = learn_non_pooled_embeddings(frequencies, counts, args)
+        else:
+            walks = process_non_pooled_model_data(walks, counts, args)
+            model = learn_non_pooled_embeddings(walks, counts, args)
     else:
         model = learn_pooled_embeddings(walks, counts, args)
 
